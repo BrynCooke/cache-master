@@ -60,7 +60,7 @@ where
 
         let role;
         // Lock the in_flight map and decide if we are the Fetcher or Waiter.
-        // in_flight is a sdt::sync::mutex so that we don't have an await during this block.
+        // in_flight is a sdt::sync::mutex so that we don't have an await during this block and we can use RAII for cleanup.
         // This is fine because we are not doing any blocking operations in this section.
         {
             let mut in_flight = self.in_flight.lock().unwrap();
@@ -85,7 +85,8 @@ where
         match role {
             Role::Fetcher(mut guard) => {
                 // We are the fetcher
-                // We need to make sure that we clean up the map after we've finished. RAII is used for this.
+                // We need to make sure that we clean up the map after we've finished. RAII is used for this and should be good for cancellations and panics.
+                // This must be created before any await operation.
                 let _cleanup: Cleanup<C> = Cleanup {
                     key: key.clone(),
                     in_flight: self.in_flight.clone(),
